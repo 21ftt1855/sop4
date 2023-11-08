@@ -1,0 +1,28 @@
+---
+# Initial Server Setup
+remote_user: dwdtgroup13
+
+# MySQL Setup
+mysql_root_password: MYSQL_ROOT_PASSWORD
+mysql_app_db: dwdtgroup13
+mysql_app_user: dwdtgroup13_user
+mysql_app_pass: kohmuni
+
+# Web Server Setup
+http_host: "{{ ansible_facts.eth0.ipv4.address }}"
+remote_www_root: /var/www
+app_root_dir: dwdtgroup13
+document_root: "{{ remote_www_root }}/{{ app_root_dir }}/public"
+
+# GitHub repo containing Laravel
+
+# Laravel Env Variables
+app_name: dwdtgroup13
+app_env: dev
+app_debug: true
+app_url: "http://{{ http_host }}"
+db_host: localhost
+db_port: 3306
+db_database: "{{ mysql_app_db }}"
+db_user: "{{ mysql_app_user }}"
+db_pass: "{{ mysql_app_pass }}"

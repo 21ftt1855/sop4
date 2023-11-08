@@ -1,0 +1,40 @@
+---
+- hosts: all
+  become: true
+  vars:
+# used by geerlingguy.swap:
+    swap_file_size_mb: '1024'
+# used by geerlingguy.php:
+#    php_enable_webserver: true
+#    php_webserver_daemon: "nginx"
+#    php_enable_php_fpm: true
+    php_default_version_debian: "8.1"
+    php_install_recommends: false
+    php_packages:
+      - php
+      - php-cli
+      - php-common
+      - php-gd
+      - php-pdo
+      - php-mbstring
+      - php-xml
+      - php-bcmath
+      - php-curl
+      - php-json
+      - php-fileinfo
+      - php-tokenizer
+      - php-ctype
+
+
+  roles:
+    - { role: setup, tags: ['setup'] }
+
+    - geerlingguy.swap
+
+    - { role: mariadb, tags: ['mysql', 'mariadb', 'db', 'lemp'] }
+
+    - { role: geerlingguy.php, tags: 'php'}
+
+    - { role: nginx, tags: ['nginx', 'web', 'http', 'lemp'] }
+
+    - { role: geerlingguy.composer, tags: 'composer'}

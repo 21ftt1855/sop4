@@ -1,0 +1,12 @@
+---
+- hosts: all
+  become: true
+  tasks:
+    - name: Update apt packages
+      apt:
+        update_cache: yes
+
+    - name: Ensure Python is installed
+      package:
+        name: python3
+        state: present

@@ -1,0 +1,113 @@
+---
+- hosts: all
+  become: true
+  vars:
+    github_repo: "git@github.com:21ftt1855/SOP-AS4-Assignment-4.git"
+    remote_user: "dwdtgroup13"
+    remote_www_root: "/var/www"
+    app_root_dir: "dwdtgroup13"
+    ssh_key_path: "/home/dwdtgroup13/.ssh/id_ed25519"
+
+  tasks:
+    - name: Make sure the remote app root exists and has the right permissions
+      file:
+        path: "{{ remote_www_root }}/{{ app_root_dir }}"
+        state: directory
+        mode: '0755'
+        owner: "{{ remote_user }}"
+        group: "{{ remote_user }}"
+
+#    - name: Rsync application files to the remote server
+#      synchronize:
+#        src: "application/{{ app_root_dir }}"
+#        dest: "{{ remote_www_root }}"
+#        rsync_opts:
+#          - "--no-motd"
+#          - "--exclude=.git,vendor,tests,storage/logs/*,storage/framework/sessions/*,storage/framework/cache/*"
+
+    - name: Git pull Laravel Code
+      ansible.builtin.git:
+        repo: "{{ github_repo }}"
+        dest: "{{ remote_www_root }}/{{ app_root_dir }}"
+        accept_hostkey: true
+        single_branch: yes
+        version: 10.x
+      environment:
+        GIT_SSH_COMMAND: "ssh -i /home/dwdtgroup13/.ssh/id_ed25519"
+
+#    - name: Git pull Laravel Code using command module
+#      command: >
+#        git clone --single-branch --branch 10.x "{{ github_repo }}" "{{ remote_www_root }}/{{ app_root_dir }}"
+#      environment:
+#        GIT_SSH_COMMAND: "ssh -i {{ ssh_key_path }}"
+    - name: Update package list
+      become: true
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: install php zip extension
+      become: true
+      ansible.builtin.apt:
+        name: php-zip
+        state: present
+
+    - name: install php-apcu package
+      become: true
+      ansible.builtin.apt:
+        name: php-apcu
+        state: present
+
+#    - name: Clear Composer cache
+#      command: composer clear-cache
+
+    - name: take ownership of laravel folder
+      file:
+        path: "{{ remote_www_root }}/{{ app_root_dir }}"
+        owner: "{{ remote_user }}"
+        group: "{{ remote_user }}"
+      become: yes
+
+    - name: set permissions for Laravel storage folder
+      file:
+        path: "{{ remote_www_root }}/{{ app_root_dir }}/storage/"
+        state: directory
+        owner: "www-data"
+        group: "www-data"
+        recurse: yes
+      become: yes
+
+    - name: Set up .env file
+      template:
+        src: laravel-env.j2
+        dest: "{{ remote_www_root }}/{{ app_root_dir }}/.env"
+
+#    - name: Reinstall project dependencies
+#      command: sudo composer install
+#      args:
+#        chdir: "/var/www/dwdtgroup13"
+
+    - name: Install Dependencies with Composer
+      become: false
+      composer:
+        command: install
+        working_dir: "{{ remote_www_root }}/{{ app_root_dir }}"
+        prefer_dist: true
+        no_scripts: true
+      tags: [ 'composer:install' ]
+
+    - name: Generate app key
+      command: "/usr/bin/php {{ remote_www_root }}/{{ app_root_dir }}/artisan key:generate"
+      tags: [ 'laravel', 'artisan:key' ]
+
+    - name: Set up app storage link
+      command: "/usr/bin/php {{ remote_www_root }}/{{ app_root_dir }}/artisan storage:link"
+      tags: [ 'laravel', 'artisan:storage' ]
+
+    - name: Run Migrations + Seeders
+      command: "/usr/bin/php {{ remote_www_root }}/{{ app_root_dir }}/artisan migrate --seed"
+      tags: [ 'laravel', 'artisan:migrate' ]
+
+    - name: Reload Nginx service
+      service:
+        name: nginx
+        state: reloaded
